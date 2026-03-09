@@ -1,5 +1,5 @@
 import { html, nothing } from "lit";
-import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
+import { parseAgentSessionKey } from "../session-key-utils.ts";
 import { t } from "../i18n/index.ts";
 import { clearQueueStaleTimer, refreshChatAvatar } from "./app-chat.ts";
 import { startMqttConnection, disconnectMqtt } from "./app-lifecycle.ts";

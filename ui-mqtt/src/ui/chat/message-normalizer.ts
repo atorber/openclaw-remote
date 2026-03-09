@@ -2,7 +2,7 @@
  * Message normalization utilities for chat rendering.
  */
 
-import { stripInboundMetadata } from "../../../../src/auto-reply/reply/strip-inbound-meta.js";
+import { stripInboundMetadata } from "../../shared/strip-inbound-meta.ts";
 import type { NormalizedMessage, MessageContentItem } from "../types/chat-types.ts";
 
 /**

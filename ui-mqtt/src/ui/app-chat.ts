@@ -1,4 +1,4 @@
-import { parseAgentSessionKey } from "../../../src/sessions/session-key-utils.js";
+import { parseAgentSessionKey } from "../session-key-utils.ts";
 import { reconnectMqtt } from "./app-lifecycle.ts";
 import { scheduleChatScroll } from "./app-scroll.ts";
 import { setLastActiveSessionKey } from "./app-settings.ts";

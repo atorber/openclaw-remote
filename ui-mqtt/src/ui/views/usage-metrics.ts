@@ -3,7 +3,7 @@ import {
   buildUsageAggregateTail,
   mergeUsageDailyLatency,
   mergeUsageLatency,
-} from "../../../../src/shared/usage-aggregates.js";
+} from "../../shared/usage-aggregates.ts";
 import { UsageSessionEntry, UsageTotals, UsageAggregates } from "./usageTypes.ts";
 
 const CHARS_PER_TOKEN = 4;

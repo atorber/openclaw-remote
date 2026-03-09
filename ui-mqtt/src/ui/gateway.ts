@@ -1,11 +1,11 @@
-import { buildDeviceAuthPayload } from "../../../src/gateway/device-auth.js";
+import { buildDeviceAuthPayload } from "../gateway/device-auth.ts";
 import {
   GATEWAY_CLIENT_MODES,
   GATEWAY_CLIENT_NAMES,
   type GatewayClientMode,
   type GatewayClientName,
-} from "../../../src/gateway/protocol/client-info.js";
-import { readConnectErrorDetailCode } from "../../../src/gateway/protocol/connect-error-details.js";
+} from "../gateway/client-info.ts";
+import { readConnectErrorDetailCode } from "../gateway/connect-error-details.ts";
 import { clearDeviceAuthToken, loadDeviceAuthToken, storeDeviceAuthToken } from "./device-auth.ts";
 import { loadOrCreateDeviceIdentity, signDevicePayload } from "./device-identity.ts";
 import { generateUUID } from "./uuid.ts";
