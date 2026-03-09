@@ -1,0 +1,32 @@
+{
+  "id": "openclaw-mqtt-bridge",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true
+      },
+      "mqtt": {
+        "type": "object",
+        "properties": {
+          "gatewayId": { "type": "string" },
+          "secretKey": { "type": "string" }
+        },
+        "required": ["gatewayId", "secretKey"]
+      },
+      "auth": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "password": { "type": "string" }
+        }
+      },
+      "requestTimeoutMs": {
+        "type": "number",
+        "default": 60000
+      }
+    }
+  }
+}

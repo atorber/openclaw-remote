@@ -1,0 +1,24 @@
+{
+  "name": "@atorber/openclaw-mqtt-bridge",
+  "version": "0.0.1",
+  "description": "Bridge Gateway WS protocol to MQTT for remote UI access",
+  "license": "MIT",
+  "files": [
+    "index.ts",
+    "src/",
+    "openclaw.plugin.json"
+  ],
+  "type": "module",
+  "dependencies": {
+    "mqtt": "^5.12.2",
+    "ws": "^8.18.2"
+  },
+  "peerDependencies": {
+    "openclaw": "*"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
