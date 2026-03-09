@@ -8,7 +8,6 @@ dist/
 ui-mqtt/src-tauri/target/
 
 # Local / docs (optional: remove .knowledge from ignore if you want to commit them)
-.knowledge/
 
 # IDE & system
 .DS_Store

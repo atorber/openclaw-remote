@@ -1,0 +1,18 @@
+{
+  "name": "openclaw-remote-chrome",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@atorber/mqtt-core": "file:../../packages/mqtt-core",
+    "mqtt": "^5.12.2"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.2",
+    "vite": "^6.0.0"
+  }
+}

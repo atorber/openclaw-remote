@@ -263,6 +263,11 @@ export type AppViewState = {
     mqttConnecting: boolean;
     mqttConnected: boolean;
     mqttError: string | null;
+    mqttAddGatewayForm: { name: string; gatewayId: string; secretKey: string } | null;
+    mqttDrawerMode: "view" | "edit" | "add" | null;
+    mqttDrawerGatewayId: string | null;
+    mqttDrawerEditRemark: string;
+    mqttGatewayListVersion: number;
     refreshSessionsAfterChat: Set<string>;
     connect: () => void;
     setTab: (tab: Tab) => void;

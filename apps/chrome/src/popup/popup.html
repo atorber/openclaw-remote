@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenClaw Remote</title>
+  <link rel="stylesheet" href="./popup.css" />
+</head>
+<body>
+  <div id="app">
+    <section id="config-section">
+      <h2>Connection</h2>
+      <div class="field">
+        <label for="brokerUrl">Broker URL</label>
+        <input id="brokerUrl" type="url" placeholder="wss://broker.emqx.io:8084/mqtt" />
+      </div>
+      <div class="field">
+        <label for="gatewayId">Gateway ID</label>
+        <input id="gatewayId" type="text" placeholder="gw-xxx" />
+        <button type="button" id="btn-generate">Generate new ID + Key</button>
+      </div>
+      <div class="field">
+        <label for="secretKey">Secret Key</label>
+        <input id="secretKey" type="password" placeholder="Base64 key" />
+      </div>
+      <div class="field">
+        <label for="sessionKey">Session Key</label>
+        <input id="sessionKey" type="text" placeholder="agent:default:main" />
+      </div>
+      <div class="actions">
+        <button type="button" id="btn-save">Save</button>
+        <button type="button" id="btn-connect">Connect</button>
+        <button type="button" id="btn-disconnect">Disconnect</button>
+      </div>
+      <p id="status" class="status"></p>
+    </section>
+    <section id="chat-section">
+      <h2>Chat</h2>
+      <div id="message-list" class="message-list"></div>
+      <div class="input-row">
+        <input id="message-input" type="text" placeholder="Type a message..." />
+        <button type="button" id="btn-send">Send</button>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="./popup.js"></script>
+</body>
+</html>

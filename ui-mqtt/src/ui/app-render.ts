@@ -80,7 +80,6 @@ import { renderInstances } from "./views/instances.ts";
 import { renderLogs } from "./views/logs.ts";
 import {
   renderMqttSettings,
-  generateCredentials,
   saveMqttSettings,
   type MqttSettings,
 } from "./views/mqtt-settings.ts";
@@ -148,6 +147,19 @@ function resolveAssistantAvatarUrl(state: AppViewState): string | undefined {
 export function renderApp(state: AppViewState) {
   // MQTT mode: show settings page if not connected yet and no saved credentials
   if (!state.mqttConnected && !state.connected) {
+    const app = state as unknown as {
+      handleMqttGatewayListChange: () => void;
+      handleMqttOpenDrawerView: (gatewayId: string) => void;
+      handleMqttOpenDrawerEdit: (gatewayId: string, remark: string) => void;
+      handleMqttOpenDrawerAdd: () => void;
+      handleMqttCloseDrawer: () => void;
+      handleMqttDrawerEditRemarkChange: (remark: string) => void;
+      handleMqttAddGatewayFormChange: (form: {
+        name: string;
+        gatewayId: string;
+        secretKey: string;
+      }) => void;
+    };
     return renderMqttSettings(
       state.mqttSettings,
       {
@@ -165,17 +177,25 @@ export function renderApp(state: AppViewState) {
         onFieldChange: (field: keyof MqttSettings, value: string) => {
           state.mqttSettings = { ...state.mqttSettings, [field]: value };
         },
-        onGenerate: () => {
-          const creds = generateCredentials();
-          state.mqttSettings = {
-            ...state.mqttSettings,
-            gatewayId: creds.gatewayId,
-            secretKey: creds.secretKey,
-          };
-        },
+        onGenerate: () => {},
+        onGatewayListChange: () => app.handleMqttGatewayListChange(),
+        onConnectGateway: () => {},
+        onAddGateway: () => {},
+        onEditGateway: () => {},
+        onDeleteGateway: () => {},
+        onOpenDrawerView: (id) => app.handleMqttOpenDrawerView(id),
+        onOpenDrawerEdit: (id, remark) => app.handleMqttOpenDrawerEdit(id, remark),
+        onOpenDrawerAdd: () => app.handleMqttOpenDrawerAdd(),
+        onCloseDrawer: () => app.handleMqttCloseDrawer(),
+        onDrawerEditRemarkChange: (remark) => app.handleMqttDrawerEditRemarkChange(remark),
+        onAddGatewayFormChange: (form) => app.handleMqttAddGatewayFormChange(form),
       },
       state.mqttError,
       state.mqttConnecting,
+      state.mqttDrawerMode,
+      state.mqttDrawerGatewayId,
+      state.mqttDrawerEditRemark,
+      state.mqttAddGatewayForm,
     );
   }
 

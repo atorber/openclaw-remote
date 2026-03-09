@@ -389,6 +389,11 @@ export class OpenClawApp extends LitElement {
   @state() mqttConnecting = false;
   @state() mqttConnected = false;
   @state() mqttError: string | null = null;
+  @state() mqttAddGatewayForm: { name: string; gatewayId: string; secretKey: string } | null = null;
+  @state() mqttDrawerMode: "view" | "edit" | "add" | null = null;
+  @state() mqttDrawerGatewayId: string | null = null;
+  @state() mqttDrawerEditRemark = "";
+  @state() mqttGatewayListVersion = 0;
   private chatScrollFrame: number | null = null;
   private chatScrollTimeout: number | null = null;
   private chatHasAutoScrolled = false;
@@ -595,6 +600,42 @@ export class OpenClawApp extends LitElement {
 
   handleGatewayUrlCancel() {
     this.pendingGatewayUrl = null;
+  }
+
+  handleMqttGatewayListChange() {
+    this.mqttGatewayListVersion += 1;
+  }
+
+  handleMqttOpenDrawerView(gatewayId: string) {
+    this.mqttDrawerMode = "view";
+    this.mqttDrawerGatewayId = gatewayId;
+  }
+
+  handleMqttOpenDrawerEdit(gatewayId: string, remark: string) {
+    this.mqttDrawerMode = "edit";
+    this.mqttDrawerGatewayId = gatewayId;
+    this.mqttDrawerEditRemark = remark;
+  }
+
+  handleMqttOpenDrawerAdd() {
+    this.mqttDrawerMode = "add";
+    this.mqttDrawerGatewayId = null;
+    this.mqttAddGatewayForm = { name: "", gatewayId: "", secretKey: "" };
+  }
+
+  handleMqttCloseDrawer() {
+    this.mqttDrawerMode = null;
+    this.mqttDrawerGatewayId = null;
+    this.mqttDrawerEditRemark = "";
+    this.mqttAddGatewayForm = null;
+  }
+
+  handleMqttDrawerEditRemarkChange(remark: string) {
+    this.mqttDrawerEditRemark = remark;
+  }
+
+  handleMqttAddGatewayFormChange(form: { name: string; gatewayId: string; secretKey: string }) {
+    this.mqttAddGatewayForm = form;
   }
 
   // Sidebar handlers for tool output viewing

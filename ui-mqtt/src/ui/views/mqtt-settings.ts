@@ -1,8 +1,7 @@
 /**
  * MQTT connection settings view — shown before the main app when MQTT is not connected.
- * Allows users to configure broker URL, gateway ID, and secret key.
- * Supports generating new gateway ID + secret key pairs.
- * Supports saving and selecting from historical gateway profiles.
+ * Left: gateway management list (generate ID, add gateway, list with connect/edit/delete).
+ * Right: config panel for selected gateway.
  */
 
 import openclawIcon from "/openclaw-icon.png?url";
@@ -23,7 +22,7 @@ export type MqttSettings = {
   remark: string;
 };
 
-type GatewayProfile = {
+export type GatewayProfile = {
   gatewayId: string;
   secretKey: string;
   brokerUrl: string;
@@ -68,7 +67,7 @@ export function saveMqttSettings(settings: MqttSettings): void {
   }
 }
 
-function loadHistory(): GatewayProfile[] {
+export function loadGatewayList(): GatewayProfile[] {
   try {
     const raw = localStorage.getItem(MQTT_HISTORY_KEY);
     if (!raw) {
@@ -91,8 +90,8 @@ function loadHistory(): GatewayProfile[] {
 }
 
 function saveToHistory(settings: MqttSettings): void {
-  const history = loadHistory();
-  const idx = history.findIndex((p) => p.gatewayId === settings.gatewayId);
+  const list = loadGatewayList();
+  const idx = list.findIndex((p) => p.gatewayId === settings.gatewayId);
   const profile: GatewayProfile = {
     gatewayId: settings.gatewayId,
     secretKey: settings.secretKey,
@@ -101,22 +100,66 @@ function saveToHistory(settings: MqttSettings): void {
     lastUsed: Date.now(),
   };
   if (idx >= 0) {
-    history.splice(idx, 1);
+    list.splice(idx, 1);
   }
-  history.unshift(profile);
-  localStorage.setItem(MQTT_HISTORY_KEY, JSON.stringify(history));
+  list.unshift(profile);
+  localStorage.setItem(MQTT_HISTORY_KEY, JSON.stringify(list));
 }
 
-function deleteFromHistory(gatewayId: string): void {
-  const history = loadHistory().filter((p) => p.gatewayId !== gatewayId);
-  localStorage.setItem(MQTT_HISTORY_KEY, JSON.stringify(history));
+export function addGatewayToList(profile: Omit<GatewayProfile, "lastUsed">): void {
+  const list = loadGatewayList();
+  const existing = list.findIndex((p) => p.gatewayId === profile.gatewayId);
+  const entry: GatewayProfile = {
+    ...profile,
+    brokerUrl: profile.brokerUrl || DEFAULT_BROKER_URL,
+    lastUsed: Date.now(),
+  };
+  if (existing >= 0) {
+    list.splice(existing, 1);
+  }
+  list.unshift(entry);
+  localStorage.setItem(MQTT_HISTORY_KEY, JSON.stringify(list));
 }
+
+export function updateGatewayInList(
+  gatewayId: string,
+  updates: Partial<Pick<GatewayProfile, "remark" | "brokerUrl">>,
+): void {
+  const list = loadGatewayList();
+  const idx = list.findIndex((p) => p.gatewayId === gatewayId);
+  if (idx < 0) return;
+  list[idx] = { ...list[idx], ...updates };
+  localStorage.setItem(MQTT_HISTORY_KEY, JSON.stringify(list));
+}
+
+export function deleteGatewayFromList(gatewayId: string): void {
+  const list = loadGatewayList().filter((p) => p.gatewayId !== gatewayId);
+  localStorage.setItem(MQTT_HISTORY_KEY, JSON.stringify(list));
+}
+
+export type MqttDrawerMode = "view" | "edit" | "add" | null;
 
 export type MqttSettingsCallbacks = {
   onConnect: (settings: MqttSettings) => void;
   onCancel: () => void;
   onFieldChange: (field: keyof MqttSettings, value: string) => void;
   onGenerate: () => void;
+  onGatewayListChange: () => void;
+  onConnectGateway: (profile: GatewayProfile) => void;
+  onAddGateway: (profile: Omit<GatewayProfile, "lastUsed">) => void;
+  onEditGateway: (gatewayId: string, updates: Partial<Pick<GatewayProfile, "remark">>) => void;
+  onDeleteGateway: (gatewayId: string) => void;
+  onOpenDrawerView?: (gatewayId: string) => void;
+  onOpenDrawerEdit?: (gatewayId: string, remark: string) => void;
+  onOpenDrawerAdd?: () => void;
+  onCloseDrawer?: () => void;
+  onDrawerEditRemarkChange?: (remark: string) => void;
+  onSaveDrawerEdit?: () => void;
+  onAddGatewayFormChange?: (form: {
+    name: string;
+    gatewayId: string;
+    secretKey: string;
+  }) => void;
 };
 
 /** Generate a new gateway ID + secret key pair. */
@@ -142,37 +185,31 @@ function copyToClipboard(text: string, buttonEl: HTMLButtonElement): void {
   });
 }
 
-export function renderMqttSettings(
-  settings: MqttSettings,
-  callbacks: MqttSettingsCallbacks,
-  error: string | null,
-  connecting: boolean,
+function profileToSettings(p: GatewayProfile): MqttSettings {
+  return {
+    brokerUrl: p.brokerUrl || DEFAULT_BROKER_URL,
+    gatewayId: p.gatewayId,
+    secretKey: p.secretKey,
+    remark: p.remark,
+  };
+}
+
+function renderConfigPanel(
+  gwId: string,
+  sk: string,
+  t: (key: string) => string,
+  copyToClipboardFn: (text: string, btn: HTMLButtonElement) => void,
 ): TemplateResult {
-  const t = i18n.t.bind(i18n);
-  const canConnect = settings.gatewayId.trim() && settings.secretKey.trim();
-  const history = loadHistory();
-
-  const gwId = settings.gatewayId || "<your-gateway-id>";
-  const sk = settings.secretKey || "<your-secret-key>";
-
   const configJson = JSON.stringify(
     {
       gateway: {
-        controlUi: {
-          allowInsecureAuth: true,
-        },
+        controlUi: { allowInsecureAuth: true },
       },
       plugins: {
         entries: {
           "openclaw-mqtt-bridge": {
             enabled: true,
-            config: {
-              enabled: true,
-              mqtt: {
-                gatewayId: gwId,
-                secretKey: sk,
-              },
-            },
+            config: { enabled: true, mqtt: { gatewayId: gwId, secretKey: sk } },
           },
         },
       },
@@ -180,220 +217,306 @@ export function renderMqttSettings(
     null,
     2,
   );
-
   const cliCmd1 = `openclaw config set "gateway.controlUi.allowInsecureAuth" true`;
   const cliCmd2 = `openclaw config set "plugins.entries.openclaw-mqtt-bridge" '{"enabled":true,"config":{"enabled":true,"mqtt":{"gatewayId":"${gwId}","secretKey":"${sk}"}}}'`;
+  return html`
+    <div class="mqtt-config-section">
+      <div class="mqtt-config-header">
+        <label>${t("mqtt.configCliTitle")}</label>
+      </div>
+      <div class="mqtt-cli-item">
+        <pre class="mqtt-config-code mqtt-config-code--cli"><code>$ ${cliCmd1}</code></pre>
+        <button class="mqtt-copy-icon-btn" title="${t("mqtt.copy")}" @click=${(e: MouseEvent) =>
+          copyToClipboardFn(cliCmd1, e.currentTarget as HTMLButtonElement)}>${unsafeHTML(ICON_COPY)}</button>
+      </div>
+      <div class="mqtt-cli-item">
+        <pre class="mqtt-config-code mqtt-config-code--cli"><code>$ ${cliCmd2}</code></pre>
+        <button class="mqtt-copy-icon-btn" title="${t("mqtt.copy")}" @click=${(e: MouseEvent) =>
+          copyToClipboardFn(cliCmd2, e.currentTarget as HTMLButtonElement)}>${unsafeHTML(ICON_COPY)}</button>
+      </div>
+    </div>
+    <div class="mqtt-config-section">
+      <div class="mqtt-config-header">
+        <label>${t("mqtt.configJsonTitle")}</label>
+        <button class="mqtt-copy-icon-btn" title="${t("mqtt.copy")}" @click=${(e: MouseEvent) =>
+          copyToClipboardFn(configJson, e.currentTarget as HTMLButtonElement)}>${unsafeHTML(ICON_COPY)}</button>
+      </div>
+      <p class="mqtt-config-desc">${t("mqtt.configDesc")}</p>
+      <pre class="mqtt-config-code"><code>${configJson}</code></pre>
+    </div>
+  `;
+}
+
+export function renderMqttSettings(
+  settings: MqttSettings,
+  callbacks: MqttSettingsCallbacks,
+  error: string | null,
+  connecting: boolean,
+  drawerMode: MqttDrawerMode,
+  drawerGatewayId: string | null,
+  drawerEditRemark: string,
+  addGatewayForm: { name: string; gatewayId: string; secretKey: string } | null,
+): TemplateResult {
+  const t = i18n.t.bind(i18n);
+  const list = loadGatewayList();
+  const viewProfile =
+    drawerMode === "view" && drawerGatewayId
+      ? list.find((p) => p.gatewayId === drawerGatewayId) ?? null
+      : null;
+  const editProfile =
+    drawerMode === "edit" && drawerGatewayId
+      ? list.find((p) => p.gatewayId === drawerGatewayId) ?? null
+      : null;
+
+  const drawerTitle =
+    drawerMode === "view"
+      ? t("mqtt.viewConfig")
+      : drawerMode === "edit"
+        ? t("mqtt.editGateway")
+        : drawerMode === "add"
+          ? t("mqtt.addGatewayTitle")
+          : "";
+
+  const drawerBody =
+    drawerMode === "view" && viewProfile
+      ? renderConfigPanel(
+          viewProfile.gatewayId,
+          viewProfile.secretKey,
+          t,
+          copyToClipboard,
+        )
+      : drawerMode === "edit" && editProfile
+        ? html`
+            <div class="mqtt-drawer-form">
+              <div class="mqtt-settings-field">
+                <label>${t("mqtt.name")}</label>
+                <input
+                  type="text"
+                  .value=${drawerEditRemark}
+                  placeholder="${t("mqtt.remarkPlaceholder")}"
+                  @input=${(e: InputEvent) =>
+                    callbacks.onDrawerEditRemarkChange?.((e.target as HTMLInputElement).value)}
+                />
+              </div>
+              <div class="mqtt-drawer-actions">
+                <button
+                  class="mqtt-settings-connect-btn"
+                  @click=${() => {
+                    updateGatewayInList(editProfile.gatewayId, { remark: drawerEditRemark.trim() });
+                    callbacks.onEditGateway(editProfile.gatewayId, { remark: drawerEditRemark.trim() });
+                    callbacks.onGatewayListChange();
+                    callbacks.onCloseDrawer?.();
+                  }}
+                >
+                  ${t("mqtt.save")}
+                </button>
+                <button class="mqtt-settings-cancel-btn" @click=${() => callbacks.onCloseDrawer?.()}>
+                  ${t("mqtt.cancel")}
+                </button>
+              </div>
+            </div>
+          `
+        : drawerMode === "add" && addGatewayForm
+          ? html`
+              <div class="mqtt-drawer-form">
+                <div class="mqtt-settings-field">
+                  <label>${t("mqtt.name")}</label>
+                  <input
+                    type="text"
+                    .value=${addGatewayForm.name}
+                    placeholder="${t("mqtt.remarkPlaceholder")}"
+                    @input=${(e: InputEvent) =>
+                      callbacks.onAddGatewayFormChange?.({
+                        ...addGatewayForm,
+                        name: (e.target as HTMLInputElement).value,
+                      })}
+                  />
+                </div>
+                <div class="mqtt-settings-field">
+                  <label>${t("mqtt.gatewayId")}</label>
+                  <input
+                    type="text"
+                    .value=${addGatewayForm.gatewayId}
+                    placeholder="gw-xxxxxxxx"
+                    @input=${(e: InputEvent) =>
+                      callbacks.onAddGatewayFormChange?.({
+                        ...addGatewayForm,
+                        gatewayId: (e.target as HTMLInputElement).value,
+                      })}
+                  />
+                </div>
+                <div class="mqtt-settings-field">
+                  <label>${t("mqtt.secretKey")}</label>
+                  <input
+                    type="password"
+                    .value=${addGatewayForm.secretKey}
+                    placeholder="Base64 encoded 256-bit key"
+                    autocomplete="off"
+                    @input=${(e: InputEvent) =>
+                      callbacks.onAddGatewayFormChange?.({
+                        ...addGatewayForm,
+                        secretKey: (e.target as HTMLInputElement).value,
+                      })}
+                  />
+                </div>
+                <div class="mqtt-drawer-actions">
+                  <button
+                    class="mqtt-settings-connect-btn"
+                    ?disabled=${!addGatewayForm.gatewayId.trim() || !addGatewayForm.secretKey.trim()}
+                    @click=${() => {
+                      addGatewayToList({
+                        remark: addGatewayForm.name.trim(),
+                        gatewayId: addGatewayForm.gatewayId.trim(),
+                        secretKey: addGatewayForm.secretKey,
+                        brokerUrl: DEFAULT_BROKER_URL,
+                      });
+                      callbacks.onGatewayListChange();
+                      callbacks.onCloseDrawer?.();
+                    }}
+                  >
+                    ${t("mqtt.confirmAdd")}
+                  </button>
+                  <button class="mqtt-settings-cancel-btn" @click=${() => callbacks.onCloseDrawer?.()}>
+                    ${t("mqtt.cancel")}
+                  </button>
+                </div>
+              </div>
+            `
+          : null;
 
   return html`
     <div class="mqtt-settings">
       <div class="mqtt-settings-layout">
         <div class="mqtt-settings-card">
-          <h2 class="mqtt-settings-title"><img src="${openclawIcon}" alt="" class="mqtt-settings-icon" />${t("mqtt.title")} <span class="mqtt-settings-version">v${__APP_VERSION__}</span></h2>
+          <h2 class="mqtt-settings-title">
+            <img src="${openclawIcon}" alt="" class="mqtt-settings-icon" />${t("mqtt.title")}
+            <span class="mqtt-settings-version">v${__APP_VERSION__}</span>
+          </h2>
           <p class="mqtt-settings-desc">${t("mqtt.description")}</p>
 
           ${error ? html`<div class="mqtt-settings-error">${error}</div>` : ""}
 
-          ${
-            history.length > 0
-              ? html`
-              <div class="mqtt-settings-field">
-                <label>${t("mqtt.history")}</label>
-                <div class="mqtt-dropdown" @focusout=${(e: FocusEvent) => {
-                  const dropdown = e.currentTarget as HTMLElement;
-                  requestAnimationFrame(() => {
-                    if (!dropdown.contains(document.activeElement)) {
-                      dropdown.classList.remove("mqtt-dropdown--open");
-                    }
-                  });
-                }}>
-                  <button
-                    class="mqtt-dropdown-trigger"
-                    @click=${(e: MouseEvent) => {
-                      const dropdown = (e.currentTarget as HTMLElement).parentElement!;
-                      dropdown.classList.toggle("mqtt-dropdown--open");
-                    }}
-                  >
-                    <span class="mqtt-dropdown-value">${
-                      settings.gatewayId && history.some((h) => h.gatewayId === settings.gatewayId)
-                        ? history.find((h) => h.gatewayId === settings.gatewayId)?.remark
-                          ? `${history.find((h) => h.gatewayId === settings.gatewayId)!.remark} (${settings.gatewayId})`
-                          : settings.gatewayId
-                        : t("mqtt.historyPlaceholder")
-                    }</span>
-                    <span class="mqtt-dropdown-arrow">▾</span>
-                  </button>
-                  <div class="mqtt-dropdown-menu">
-                    ${history.map(
-                      (p) => html`
-                        <div class="mqtt-dropdown-item ${p.gatewayId === settings.gatewayId ? "mqtt-dropdown-item--active" : ""}">
-                          <button
-                            class="mqtt-dropdown-item-label"
-                            @click=${(e: MouseEvent) => {
-                              callbacks.onFieldChange("gatewayId", p.gatewayId);
-                              callbacks.onFieldChange("secretKey", p.secretKey);
-                              callbacks.onFieldChange(
-                                "brokerUrl",
-                                p.brokerUrl || DEFAULT_BROKER_URL,
-                              );
-                              callbacks.onFieldChange("remark", p.remark || "");
-                              (e.currentTarget as HTMLElement)
-                                .closest(".mqtt-dropdown")!
-                                .classList.remove("mqtt-dropdown--open");
-                            }}
-                          >${p.remark ? `${p.remark} (${p.gatewayId})` : p.gatewayId}</button>
-                          <button
-                            class="mqtt-dropdown-item-delete"
-                            title="${t("mqtt.deleteHistory")}"
-                            @click=${(e: MouseEvent) => {
-                              e.stopPropagation();
-                              deleteFromHistory(p.gatewayId);
-                              (e.currentTarget as HTMLElement)
-                                .closest(".mqtt-dropdown-item")!
-                                .remove();
-                              const menu = (e.currentTarget as HTMLElement).closest(
-                                ".mqtt-dropdown-menu",
-                              )!;
-                              if (!menu.querySelector(".mqtt-dropdown-item")) {
-                                menu
-                                  .closest(".mqtt-dropdown")!
-                                  .classList.remove("mqtt-dropdown--open");
-                              }
-                            }}
-                          >✕</button>
-                        </div>
-                      `,
-                    )}
-                  </div>
-                </div>
-              </div>
-            `
-              : ""
-          }
-
-          <div class="mqtt-settings-field">
-            <label>${t("mqtt.gatewayId")}</label>
-              <input
-                type="text"
-                .value=${settings.gatewayId}
-                placeholder="gw-xxxxxxxx"
-                @input=${(e: InputEvent) =>
-                  callbacks.onFieldChange("gatewayId", (e.target as HTMLInputElement).value)}
-              />
-          </div>
-
-          <div class="mqtt-settings-field">
-            <label>${t("mqtt.secretKey")}</label>
-            <div class="mqtt-settings-input-row">
-              <input
-                type="password"
-                .value=${settings.secretKey}
-                placeholder="Base64 encoded 256-bit key"
-                autocomplete="off"
-                @input=${(e: InputEvent) =>
-                  callbacks.onFieldChange("secretKey", (e.target as HTMLInputElement).value)}
-              />
-              <button
-                class="mqtt-settings-copy-btn"
-                title="Show/Hide"
-                @click=${(e: MouseEvent) => {
-                  const btn = e.currentTarget as HTMLButtonElement;
-                  const input = btn.parentElement?.querySelector("input") as HTMLInputElement;
-                  if (input) {
-                    const isPassword = input.type === "password";
-                    input.type = isPassword ? "text" : "password";
-                    btn.textContent = isPassword ? "🙈" : "👁";
-                  }
-                }}
-              >👁</button>
-            </div>
-          </div>
-
-          <div class="mqtt-settings-field">
-            <label>${t("mqtt.remark")}</label>
-              <input
-                type="text"
-                .value=${settings.remark}
-                placeholder="${t("mqtt.remarkPlaceholder")}"
-                @input=${(e: InputEvent) =>
-                  callbacks.onFieldChange("remark", (e.target as HTMLInputElement).value)}
-              />
-          </div>
-
-          <div class="mqtt-settings-actions">
+          <div class="mqtt-list-actions">
             <button
               class="mqtt-settings-generate-btn"
               ?disabled=${connecting}
-              @click=${() => callbacks.onGenerate()}
-            >${t("mqtt.generate")}</button>
+              @click=${() => {
+                const creds = generateCredentials();
+                addGatewayToList({
+                  gatewayId: creds.gatewayId,
+                  secretKey: creds.secretKey,
+                  brokerUrl: DEFAULT_BROKER_URL,
+                  remark: "",
+                });
+                callbacks.onGatewayListChange();
+              }}
+            >
+              ${t("mqtt.generate")}
+            </button>
+            <button
+              class="mqtt-settings-add-gateway-btn"
+              ?disabled=${connecting}
+              @click=${() => callbacks.onOpenDrawerAdd?.()}
+            >
+              ${t("mqtt.addGateway")}
+            </button>
+          </div>
 
-            ${
-              connecting
-                ? html`
-                <button
-                  class="mqtt-settings-cancel-btn"
-                  @click=${() => callbacks.onCancel()}
-                >${t("mqtt.cancel")}</button>
-                <button class="mqtt-settings-connect-btn" disabled
-                >${t("mqtt.connecting")}</button>
-              `
-                : html`
-                <button
-                  class="mqtt-settings-connect-btn"
-                  ?disabled=${!canConnect}
-                  @click=${() => {
-                    if (canConnect) {
-                      saveMqttSettings(settings);
-                      callbacks.onConnect(settings);
-                    }
-                  }}
-                >${t("mqtt.connect")}</button>
-              `
-            }
+          <div class="mqtt-gateway-table-wrap">
+            <table class="mqtt-gateway-table">
+              <thead>
+                <tr>
+                  <th>${t("mqtt.name")}</th>
+                  <th>${t("mqtt.gatewayId")}</th>
+                  <th>${t("mqtt.secretKey")}</th>
+                  <th class="mqtt-gateway-table-actions">${t("mqtt.actions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${list.length === 0
+                  ? html`
+                      <tr>
+                        <td colspan="4" class="mqtt-gateway-table-empty">${t("mqtt.noGateways")}</td>
+                      </tr>
+                    `
+                  : list.map(
+                      (p) => html`
+                        <tr>
+                          <td><span class="mqtt-list-name">${p.remark || p.gatewayId}</span></td>
+                          <td><code class="mqtt-list-gw-id">${p.gatewayId}</code></td>
+                          <td><code class="mqtt-list-secret">${p.secretKey ? "••••••••" : ""}</code></td>
+                          <td class="mqtt-gateway-table-actions">
+                            <button
+                              class="mqtt-list-btn mqtt-list-btn--view"
+                              title="${t("mqtt.view")}"
+                              @click=${() => callbacks.onOpenDrawerView?.(p.gatewayId)}
+                            >
+                              ${t("mqtt.view")}
+                            </button>
+                            <button
+                              class="mqtt-list-btn mqtt-list-btn--connect"
+                              ?disabled=${connecting}
+                              title="${t("mqtt.connect")}"
+                              @click=${() => {
+                                saveMqttSettings(profileToSettings(p));
+                                callbacks.onConnect(profileToSettings(p));
+                              }}
+                            >
+                              ${t("mqtt.connect")}
+                            </button>
+                            <button
+                              class="mqtt-list-btn mqtt-list-btn--edit"
+                              title="${t("mqtt.edit")}"
+                              @click=${() => callbacks.onOpenDrawerEdit?.(p.gatewayId, p.remark)}
+                            >
+                              ${t("mqtt.edit")}
+                            </button>
+                            <button
+                              class="mqtt-list-btn mqtt-list-btn--delete"
+                              title="${t("mqtt.delete")}"
+                              @click=${() => {
+                                deleteGatewayFromList(p.gatewayId);
+                                callbacks.onDeleteGateway(p.gatewayId);
+                                callbacks.onGatewayListChange();
+                              }}
+                            >
+                              ${t("mqtt.delete")}
+                            </button>
+                          </td>
+                        </tr>
+                      `,
+                    )}
+              </tbody>
+            </table>
           </div>
 
           <p class="mqtt-settings-hint">${t("mqtt.hint")}</p>
         </div>
-
-        <div class="mqtt-config-panel">
-          <div class="mqtt-config-section">
-            <div class="mqtt-config-header">
-              <label>${t("mqtt.configCliTitle")}</label>
-            </div>
-            <div class="mqtt-cli-item">
-              <pre class="mqtt-config-code mqtt-config-code--cli"><code>$ ${cliCmd1}</code></pre>
-              <button
-                class="mqtt-copy-icon-btn"
-                title="${t("mqtt.copy")}"
-                @click=${(e: MouseEvent) =>
-                  copyToClipboard(cliCmd1, e.currentTarget as HTMLButtonElement)}
-              >${unsafeHTML(ICON_COPY)}</button>
-            </div>
-            <div class="mqtt-cli-item">
-              <pre class="mqtt-config-code mqtt-config-code--cli"><code>$ ${cliCmd2}</code></pre>
-              <button
-                class="mqtt-copy-icon-btn"
-                title="${t("mqtt.copy")}"
-                @click=${(e: MouseEvent) =>
-                  copyToClipboard(cliCmd2, e.currentTarget as HTMLButtonElement)}
-              >${unsafeHTML(ICON_COPY)}</button>
-            </div>
-          </div>
-
-          <div class="mqtt-config-section">
-            <div class="mqtt-config-header">
-              <label>${t("mqtt.configJsonTitle")}</label>
-              <button
-                class="mqtt-copy-icon-btn"
-                title="${t("mqtt.copy")}"
-                @click=${(e: MouseEvent) =>
-                  copyToClipboard(configJson, e.currentTarget as HTMLButtonElement)}
-              >${unsafeHTML(ICON_COPY)}</button>
-            </div>
-            <p class="mqtt-config-desc">${t("mqtt.configDesc")}</p>
-            <pre class="mqtt-config-code"><code>${configJson}</code></pre>
-          </div>
-        </div>
       </div>
+
+      ${drawerMode !== null
+        ? html`
+            <div
+              class="mqtt-drawer-backdrop"
+              @click=${() => callbacks.onCloseDrawer?.()}
+              aria-hidden="true"
+            ></div>
+            <div class="mqtt-drawer mqtt-drawer--open" role="dialog" aria-label="${drawerTitle}">
+              <div class="mqtt-drawer-header">
+                <h3 class="mqtt-drawer-title">${drawerTitle}</h3>
+                <button
+                  type="button"
+                  class="mqtt-drawer-close"
+                  title="${t("mqtt.closeDrawer")}"
+                  @click=${() => callbacks.onCloseDrawer?.()}
+                >
+                  ×
+                </button>
+              </div>
+              <div class="mqtt-drawer-body">${drawerBody}</div>
+            </div>
+          `
+        : ""}
     </div>
   `;
 }
