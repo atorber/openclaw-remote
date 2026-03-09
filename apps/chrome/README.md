@@ -26,6 +26,7 @@ npm run build
 
 ## Usage
 
-1. In the popup, set **Broker URL**, **Gateway ID**, and **Secret Key** (use **Generate new ID + Key** then configure the same in the bridge).
-2. Click **Save**, then **Connect**.
-3. Set **Session Key** (e.g. `agent:default:main`) and send messages.
+1. Click the extension icon in the toolbar to open the **right-side panel**.
+2. In the panel, set **Broker URL**, **Gateway ID**, and **Secret Key** (use **Generate new ID + Key** then configure the same in the bridge).
+3. Click **Save**, then **Connect**.
+4. Set **Session Key** (e.g. `agent:default:main`) and send messages.

@@ -10,11 +10,16 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        popup: path.resolve(__dirname, "src/popup/popup.html"),
+        sidepanel: path.resolve(__dirname, "src/sidepanel/sidepanel.html"),
+        background: path.resolve(__dirname, "src/background/background.ts"),
       },
       output: {
         entryFileNames: "[name]/[name].js",
-        chunkFileNames: "[name].js",
+        chunkFileNames: (chunkInfo) => {
+          const name = chunkInfo.name ?? "chunk";
+          const safe = name.startsWith("_") ? "v" + name.replace(/^_+/, "") : name;
+          return safe + ".js";
+        },
         assetFileNames: "[name]/[name][extname]",
       },
     },

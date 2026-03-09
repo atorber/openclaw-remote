@@ -3,9 +3,14 @@
   "name": "OpenClaw Remote",
   "version": "0.1.0",
   "description": "Connect to OpenClaw gateway via MQTT and chat",
-  "permissions": ["storage"],
+  "permissions": ["storage", "sidePanel"],
   "action": {
-    "default_popup": "popup/popup.html",
     "default_title": "OpenClaw"
+  },
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
   }
 }

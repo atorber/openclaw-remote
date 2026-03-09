@@ -1,0 +1,68 @@
+{
+  "name": "openclaw-remote",
+  "type": "module",
+  "displayName": "OpenClaw Remote",
+  "description": "Connect to OpenClaw gateway via MQTT and chat",
+  "version": "0.1.0",
+  "publisher": "atorber",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onView:openclaw.chat"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "OpenClaw Remote",
+      "properties": {
+        "openclaw.brokerUrl": {
+          "type": "string",
+          "default": "wss://broker.emqx.io:8084/mqtt",
+          "description": "MQTT broker URL"
+        },
+        "openclaw.gatewayId": {
+          "type": "string",
+          "default": "",
+          "description": "Gateway ID (must match bridge config)"
+        },
+        "openclaw.secretKey": {
+          "type": "string",
+          "default": "",
+          "description": "Secret key (must match bridge config)"
+        },
+        "openclaw.sessionKey": {
+          "type": "string",
+          "default": "agent:default:main",
+          "description": "Default chat session key"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "openclaw",
+          "title": "OpenClaw",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
+    "views": {
+      "openclaw": [
+        {
+          "id": "openclaw.chat",
+          "name": "Chat"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "@atorber/mqtt-core": "file:../../packages/mqtt-core",
+    "mqtt": "^5.12.2"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "typescript": "~5.7.2"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -p . -w"
+  }
+}
