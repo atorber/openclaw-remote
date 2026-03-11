@@ -1,0 +1,49 @@
+[package]
+name = "openclaw-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "Rust SDK for OpenClaw Gateway (WS RPC + CLI)"
+license = "MIT"
+
+[features]
+default = ["ws", "cli"]
+ws = [
+    "dep:tokio-tungstenite",
+    "dep:futures-util",
+    "dep:dashmap",
+    "dep:ed25519-dalek",
+    "dep:rand_core",
+    "dep:sha2",
+    "dep:base64",
+    "dep:tokio-stream",
+]
+cli = ["dep:which"]
+
+[dependencies]
+# WS layer (feature-gated)
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"], optional = true }
+futures-util = { version = "0.3", optional = true }
+dashmap = { version = "6", optional = true }
+ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
+rand_core = { version = "0.6", features = ["getrandom"], optional = true }
+sha2 = { version = "0.10", optional = true }
+base64 = { version = "0.22", optional = true }
+tokio-stream = { version = "0.1", features = ["sync"], optional = true }
+
+# Core (always compiled)
+tokio = { version = "1", features = ["process", "time", "sync", "macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+async-trait = "0.1"
+dirs = "6"
+
+# CLI layer (feature-gated)
+which = { version = "7", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-test = "0.4"
+mockall = "0.13"
