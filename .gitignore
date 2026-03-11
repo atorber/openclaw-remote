@@ -20,3 +20,4 @@ ui-mqtt/src-tauri/target/
 # pnpm-lock.yaml
 # package-lock.json
 # Cargo.lock
+sdk/rust/target/*
